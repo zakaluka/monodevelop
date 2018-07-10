@@ -160,15 +160,20 @@ namespace MonoDevelop.MacIntegration
 
 				int response = -1000;
 
+				var parent = data.TransientFor ?? IdeApp.Workbench.RootWindow;
+				NSWindow nativeParent;
+				try {
+					nativeParent = parent;
+				} catch (NotSupportedException) {
+					nativeParent = null;
+				}
 				if (!data.Message.CancellationToken.IsCancellationRequested) {
-					NSWindow parent = null;
-					if (IdeTheme.UserInterfaceTheme != Theme.Dark || MacSystemInformation.OsVersion < MacSystemInformation.HighSierra) // sheeting is broken on High Sierra with dark NSAppearance
-						parent = data.TransientFor ?? IdeApp.Workbench.RootWindow;
-
-					if (parent == null) {
+					// sheeting is broken on High Sierra with dark NSAppearance
+					var sheet = IdeTheme.UserInterfaceTheme != Theme.Dark || MacSystemInformation.OsVersion < MacSystemInformation.HighSierra;
+					if (!sheet || nativeParent == null) {
 						response = (int)alert.RunModal ();
 					} else {
-						alert.BeginSheet (parent, (modalResponse) => {
+						alert.BeginSheet (nativeParent, (modalResponse) => {
 							response = (int)modalResponse;
 							NSApplication.SharedApplication.StopModal ();
 						});
@@ -201,9 +206,10 @@ namespace MonoDevelop.MacIntegration
 				if (applyToAllCheck != null && applyToAllCheck.State != 0)
 					data.ApplyToAll = true;
 
-
-
-				GtkQuartz.FocusWindow (data.TransientFor ?? MessageService.RootWindow);
+				if (nativeParent != null)
+					nativeParent.MakeKeyAndOrderFront (nativeParent);
+				else
+					GtkQuartz.FocusWindow (parent);
 			}
 			
 			return true;
